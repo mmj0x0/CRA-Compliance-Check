@@ -19,6 +19,7 @@ class ScanContext:
     repo_path: Optional[Path]
     source: str
     offline: bool = False
+    _owns_repo_path: bool = False
 
 
 def detect_sbom_format(data: dict) -> Optional[str]:
@@ -64,21 +65,28 @@ def generate_sbom_with_syft(repo_path: Path, runner=subprocess.run, which=_shuti
         return None
 
 
+def cleanup_scan_context(ctx: ScanContext) -> None:
+    if ctx.repo_path is None or not ctx._owns_repo_path:
+        return
+    _shutil.rmtree(ctx.repo_path, ignore_errors=True)
+
+
 def resolve_input(source: str, offline: bool = False, workdir: Optional[Path] = None) -> ScanContext:
     if is_repo_url(source):
+        owns_repo_path = workdir is None
         clone_dir = workdir or Path(tempfile.mkdtemp(prefix="cra-check-"))
         clone_repo(source, clone_dir)
 
         sbom_path = find_sbom_in_repo(clone_dir)
         if sbom_path is not None:
             data, fmt = parse_sbom_file(sbom_path)
-            return ScanContext(sbom=data, sbom_format=fmt, repo_path=clone_dir, source=source, offline=offline)
+            return ScanContext(sbom=data, sbom_format=fmt, repo_path=clone_dir, source=source, offline=offline, _owns_repo_path=owns_repo_path)
 
         generated = generate_sbom_with_syft(clone_dir)
         if generated is not None:
-            return ScanContext(sbom=generated, sbom_format="cyclonedx", repo_path=clone_dir, source=source, offline=offline)
+            return ScanContext(sbom=generated, sbom_format="cyclonedx", repo_path=clone_dir, source=source, offline=offline, _owns_repo_path=owns_repo_path)
 
-        return ScanContext(sbom=None, sbom_format=None, repo_path=clone_dir, source=source, offline=offline)
+        return ScanContext(sbom=None, sbom_format=None, repo_path=clone_dir, source=source, offline=offline, _owns_repo_path=owns_repo_path)
 
     path = Path(source)
     if not path.exists():

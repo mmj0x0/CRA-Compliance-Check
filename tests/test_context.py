@@ -4,6 +4,7 @@ from pathlib import Path
 
 from cra_check.context import (
     ScanContext,
+    cleanup_scan_context,
     detect_sbom_format,
     parse_sbom_file,
     is_repo_url,
@@ -121,3 +122,65 @@ def test_resolve_input_repo_url_clone_failure(tmp_path, monkeypatch):
     monkeypatch.setattr("cra_check.context.clone_repo", fake_clone)
     with pytest.raises(RuntimeError):
         resolve_input("https://bad", workdir=tmp_path / "clone")
+
+
+def test_resolve_input_repo_url_falls_back_to_syft(tmp_path, monkeypatch):
+    def fake_clone(url, dest, runner=subprocess.run):
+        dest.mkdir(parents=True, exist_ok=True)
+
+    fake_sbom = {"bomFormat": "CycloneDX", "components": []}
+    monkeypatch.setattr("cra_check.context.clone_repo", fake_clone)
+    monkeypatch.setattr("cra_check.context.generate_sbom_with_syft", lambda repo_path: fake_sbom)
+    ctx = resolve_input("https://github.com/mmj0x0/PentestNotes", workdir=tmp_path / "clone")
+    assert ctx.sbom == fake_sbom
+    assert ctx.sbom_format == "cyclonedx"
+    assert ctx.repo_path == tmp_path / "clone"
+
+
+def test_resolve_input_repo_url_syft_also_fails(tmp_path, monkeypatch):
+    def fake_clone(url, dest, runner=subprocess.run):
+        dest.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr("cra_check.context.clone_repo", fake_clone)
+    monkeypatch.setattr("cra_check.context.generate_sbom_with_syft", lambda repo_path: None)
+    ctx = resolve_input("https://github.com/mmj0x0/PentestNotes", workdir=tmp_path / "clone")
+    assert ctx.sbom is None
+    assert ctx.sbom_format is None
+    assert ctx.repo_path == tmp_path / "clone"
+
+
+def test_cleanup_scan_context_removes_self_owned_temp_dir(tmp_path):
+    repo_path = tmp_path / "owned-clone"
+    repo_path.mkdir()
+    (repo_path / "marker.txt").write_text("hello")
+    ctx = ScanContext(sbom=None, sbom_format=None, repo_path=repo_path, source="https://example.com/repo", _owns_repo_path=True)
+    assert repo_path.exists()
+    cleanup_scan_context(ctx)
+    assert not repo_path.exists()
+
+
+def test_cleanup_scan_context_does_not_remove_explicit_workdir(tmp_path):
+    repo_path = tmp_path / "explicit-workdir"
+    repo_path.mkdir()
+    ctx = ScanContext(sbom=None, sbom_format=None, repo_path=repo_path, source="https://example.com/repo", _owns_repo_path=False)
+    cleanup_scan_context(ctx)
+    assert repo_path.exists()
+
+
+def test_cleanup_scan_context_noop_when_repo_path_is_none():
+    ctx = ScanContext(sbom={"bomFormat": "CycloneDX"}, sbom_format="cyclonedx", repo_path=None, source="sbom.json", _owns_repo_path=False)
+    cleanup_scan_context(ctx)  # should not raise
+
+
+def test_resolve_input_repo_url_without_workdir_owns_repo_path(tmp_path, monkeypatch):
+    def fake_clone(url, dest, runner=subprocess.run):
+        dest.mkdir(parents=True, exist_ok=True)
+        (dest / "sbom.json").write_text(json.dumps({"bomFormat": "CycloneDX", "components": []}))
+
+    monkeypatch.setattr("cra_check.context.clone_repo", fake_clone)
+    monkeypatch.setattr("cra_check.context.tempfile.mkdtemp", lambda prefix="": str(tmp_path / "auto-clone"))
+    ctx = resolve_input("https://github.com/mmj0x0/PentestNotes")
+    assert ctx._owns_repo_path is True
+
+    ctx_explicit = resolve_input("https://github.com/mmj0x0/PentestNotes", workdir=tmp_path / "explicit-clone")
+    assert ctx_explicit._owns_repo_path is False
