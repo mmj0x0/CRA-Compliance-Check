@@ -19,7 +19,14 @@ class SupportEolDocsCheck(Check):
 
         has_changelog = any((ctx.repo_path / name).is_file() for name in CHANGELOG_CANDIDATES)
         readme = ctx.repo_path / "README.md"
-        has_support_policy = bool(readme.is_file() and SUPPORT_KEYWORDS.search(readme.read_text(errors="ignore")))
+        has_support_policy = False
+        if readme.is_file():
+            try:
+                readme_text = readme.read_text(errors="ignore")
+            except OSError:
+                readme_text = None
+            if readme_text is not None:
+                has_support_policy = bool(SUPPORT_KEYWORDS.search(readme_text))
 
         if has_changelog and has_support_policy:
             return CheckResult(self.id, self.title, self.annex_ref, "pass", "Found both a changelog and support/EOL policy documentation.")

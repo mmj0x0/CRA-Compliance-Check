@@ -24,7 +24,10 @@ class SecureUpdateMechanismCheck(Check):
         workflows_dir = ctx.repo_path / ".github" / "workflows"
         if workflows_dir.is_dir():
             for workflow in sorted(workflows_dir.glob("*.y*ml")):
-                text = workflow.read_text(errors="ignore")
+                try:
+                    text = workflow.read_text(errors="ignore")
+                except OSError:
+                    continue
                 if RELEASE_KEYWORD.search(text):
                     return CheckResult(
                         self.id, self.title, self.annex_ref, "pass",

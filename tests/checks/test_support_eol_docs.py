@@ -1,3 +1,8 @@
+import os
+import sys
+
+import pytest
+
 from cra_check.checks.support_eol_docs import SupportEolDocsCheck
 from cra_check.context import ScanContext
 
@@ -27,3 +32,21 @@ def test_fail_when_neither_present(tmp_path):
     ctx = ScanContext(sbom=None, sbom_format=None, repo_path=tmp_path, source="x")
     result = SupportEolDocsCheck().run(ctx)
     assert result.status == "fail"
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32" or os.geteuid() == 0,
+    reason="requires POSIX permission enforcement and a non-root user",
+)
+def test_unreadable_readme_treated_as_missing(tmp_path):
+    (tmp_path / "CHANGELOG.md").write_text("## 1.0.0\n- initial release\n")
+    readme = tmp_path / "README.md"
+    readme.write_text("## Supported Versions\nWe support the last 2 LTS releases.\n")
+    readme.chmod(0o000)
+    try:
+        ctx = ScanContext(sbom=None, sbom_format=None, repo_path=tmp_path, source="x")
+        result = SupportEolDocsCheck().run(ctx)
+        # unreadable README should behave like a missing support policy, not raise
+        assert result.status == "warn"
+    finally:
+        readme.chmod(0o644)
