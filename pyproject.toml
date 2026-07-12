@@ -1,0 +1,25 @@
+[project]
+name = "cra-compliance-check"
+version = "0.1.0"
+description = "Score a project against Cyber Resilience Act (CRA) Annex I requirements from an SBOM or repo URL."
+requires-python = ">=3.10"
+dependencies = [
+    "requests>=2.31",
+    "rich>=13.7",
+]
+
+[project.scripts]
+cra-check = "cra_check.cli:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pytest-mock>=3.12"]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["cra_check*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
