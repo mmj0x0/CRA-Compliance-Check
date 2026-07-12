@@ -1,4 +1,5 @@
 from rich.console import Console
+from rich.markup import escape
 from rich.table import Table
 
 STATUS_RANK = {"not_applicable": 0, "pass": 0, "warn": 1, "fail": 2, "error": 2}
@@ -21,7 +22,12 @@ def render_terminal(report, severity_threshold: str = "pass", console=None) -> C
         if STATUS_RANK[result.status] < min_rank:
             continue
         style = STATUS_STYLES[result.status]
-        table.add_row(result.title, f"[{style}]{STATUS_LABELS[result.status]}[/{style}]", result.annex_ref, result.message)
+        table.add_row(
+            escape(result.title),
+            f"[{style}]{STATUS_LABELS[result.status]}[/{style}]",
+            escape(result.annex_ref),
+            escape(result.message),
+        )
 
     console.print(table)
     console.print(f"\nOverall score: {report.score}/100 ({report.band}) - {report.checks_evaluated}/{report.checks_total} checks evaluated")

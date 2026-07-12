@@ -48,3 +48,14 @@ def test_render_terminal_does_not_mutate_score():
     report = _make_report()
     render_terminal(report, severity_threshold="fail", console=Console(record=True, width=120))
     assert report.score == 62.5
+
+
+def test_render_terminal_escapes_bracket_markup_in_message():
+    results = [
+        CheckResult("a", "Check A", "ref-a", "warn", "Found issues in: models[v2].py"),
+    ]
+    report = Report(results=results, score=50.0, band="Partial", checks_evaluated=1, checks_total=1)
+    console = Console(record=True, width=120)
+    render_terminal(report, console=console)  # should not raise MarkupError
+    output = console.export_text()
+    assert "Found issues in: models[v2].py" in output
