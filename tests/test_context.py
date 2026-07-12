@@ -172,6 +172,38 @@ def test_cleanup_scan_context_noop_when_repo_path_is_none():
     cleanup_scan_context(ctx)  # should not raise
 
 
+def test_resolve_input_repo_url_clone_failure_cleans_up_self_generated_tempdir(tmp_path, monkeypatch):
+    auto_dir = tmp_path / "auto-clone"
+
+    def fake_clone(url, dest, runner=subprocess.run):
+        Path(dest).mkdir(parents=True, exist_ok=True)
+        raise RuntimeError(f"git clone failed for {url}: fatal: not found")
+
+    monkeypatch.setattr("cra_check.context.clone_repo", fake_clone)
+    monkeypatch.setattr("cra_check.context.tempfile.mkdtemp", lambda prefix="": str(auto_dir))
+
+    assert not auto_dir.exists()
+    with pytest.raises(RuntimeError):
+        resolve_input("https://bad")
+    assert not auto_dir.exists()
+
+
+def test_resolve_input_repo_url_clone_failure_does_not_delete_caller_workdir(tmp_path, monkeypatch):
+    caller_dir = tmp_path / "caller-workdir"
+    caller_dir.mkdir()
+    (caller_dir / "keep.txt").write_text("do not delete me")
+
+    def fake_clone(url, dest, runner=subprocess.run):
+        raise RuntimeError(f"git clone failed for {url}: fatal: not found")
+
+    monkeypatch.setattr("cra_check.context.clone_repo", fake_clone)
+
+    with pytest.raises(RuntimeError):
+        resolve_input("https://bad", workdir=caller_dir)
+    assert caller_dir.exists()
+    assert (caller_dir / "keep.txt").exists()
+
+
 def test_resolve_input_repo_url_without_workdir_owns_repo_path(tmp_path, monkeypatch):
     def fake_clone(url, dest, runner=subprocess.run):
         dest.mkdir(parents=True, exist_ok=True)

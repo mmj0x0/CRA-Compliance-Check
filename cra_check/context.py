@@ -75,7 +75,12 @@ def resolve_input(source: str, offline: bool = False, workdir: Optional[Path] = 
     if is_repo_url(source):
         owns_repo_path = workdir is None
         clone_dir = workdir or Path(tempfile.mkdtemp(prefix="cra-check-"))
-        clone_repo(source, clone_dir)
+        try:
+            clone_repo(source, clone_dir)
+        except RuntimeError:
+            if owns_repo_path:
+                _shutil.rmtree(clone_dir, ignore_errors=True)
+            raise
 
         sbom_path = find_sbom_in_repo(clone_dir)
         if sbom_path is not None:
