@@ -26,6 +26,18 @@ def test_not_applicable_excluded_from_denominator():
     assert total == 2
 
 
+def test_error_excluded_from_denominator():
+    results = [
+        CheckResult("a", "A", "ref", "pass", "ok"),
+        CheckResult("b", "B", "ref", "error", "osv.dev network failure"),
+    ]
+    weights = {"a": 1, "b": 5}
+    score, band, evaluated, total = compute_score(results, weights)
+    assert score == 100.0
+    assert evaluated == 1
+    assert total == 2
+
+
 def test_warn_counts_as_half_credit():
     results = [
         CheckResult("a", "A", "ref", "warn", "meh"),

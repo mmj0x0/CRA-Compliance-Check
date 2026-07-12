@@ -34,7 +34,7 @@ def compute_score(results: list, weights: dict) -> tuple:
     evaluated = 0
 
     for result in results:
-        if result.status == "not_applicable":
+        if result.status in ("not_applicable", "error"):
             continue
         evaluated += 1
         weight = weights.get(result.check_id, 1)
