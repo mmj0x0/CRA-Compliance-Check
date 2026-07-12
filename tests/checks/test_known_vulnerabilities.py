@@ -64,6 +64,18 @@ def test_error_when_osv_unreachable(monkeypatch):
     assert "network down" in result.message
 
 
+def test_error_when_osv_returns_malformed_json(monkeypatch):
+    ctx = ScanContext(sbom=_sbom_with_purls(["pkg:pypi/requests@2.31.0"]), sbom_format="cyclonedx", repo_path=None, source="x")
+
+    def raise_error(purls, session=None):
+        raise ValueError("Expecting value: line 1 column 1 (char 0)")
+
+    monkeypatch.setattr("cra_check.checks.known_vulnerabilities.query_osv", raise_error)
+    result = KnownVulnerabilitiesCheck().run(ctx)
+    assert result.status == "error"
+    assert "Expecting value" in result.message
+
+
 def test_query_osv_posts_batch_request():
     session = MagicMock()
     session.post.return_value.raise_for_status.return_value = None

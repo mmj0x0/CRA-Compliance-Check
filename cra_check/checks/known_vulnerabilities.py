@@ -25,8 +25,8 @@ class KnownVulnerabilitiesCheck(Check):
 
         try:
             data = query_osv(purls)
-        except requests.RequestException as exc:
-            return CheckResult(self.id, self.title, self.annex_ref, "error", f"Could not reach OSV.dev: {exc}")
+        except (requests.RequestException, ValueError) as exc:
+            return CheckResult(self.id, self.title, self.annex_ref, "error", f"OSV.dev request failed: {exc}")
 
         vulnerable = [r for r in data.get("results", []) if r.get("vulns")]
         if not vulnerable:
