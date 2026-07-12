@@ -33,6 +33,16 @@ class ExplodingCheck(Check):
         raise RuntimeError("boom")
 
 
+class AnotherPassingCheck(Check):
+    id = "another_passing"
+    title = "Another Passing"
+    annex_ref = "ref"
+    weight = 1
+
+    def run(self, ctx):
+        return CheckResult(self.id, self.title, self.annex_ref, "pass", "ok")
+
+
 def test_run_checks_aggregates_results():
     report = run_checks([PassingCheck(), FailingCheck()], ctx=None)
     assert len(report.results) == 2
@@ -42,13 +52,21 @@ def test_run_checks_aggregates_results():
 
 
 def test_run_checks_isolates_exceptions():
-    report = run_checks([PassingCheck(), ExplodingCheck()], ctx=None)
-    assert len(report.results) == 2
+    report = run_checks([PassingCheck(), ExplodingCheck(), AnotherPassingCheck()], ctx=None)
+    assert len(report.results) == 3
+
+    # Assert first check passed
+    passing_result = next(r for r in report.results if r.check_id == "passing")
+    assert passing_result.status == "pass"
+
+    # Assert middle check was caught and isolated
     exploding_result = next(r for r in report.results if r.check_id == "exploding")
     assert exploding_result.status == "error"
     assert "boom" in exploding_result.message
-    passing_result = next(r for r in report.results if r.check_id == "passing")
-    assert passing_result.status == "pass"
+
+    # Assert the check after the exception still ran (proves loop continued)
+    another_result = next(r for r in report.results if r.check_id == "another_passing")
+    assert another_result.status == "pass"
 
 
 def test_run_checks_empty_list():
