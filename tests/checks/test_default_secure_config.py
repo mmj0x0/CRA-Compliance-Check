@@ -31,3 +31,14 @@ def test_skips_git_directory(tmp_path):
     ctx = ScanContext(sbom=None, sbom_format=None, repo_path=tmp_path, source="x")
     result = DefaultSecureConfigCheck().run(ctx)
     assert result.status == "pass"
+
+
+def test_pass_when_similar_but_not_matching_value(tmp_path):
+    # Values like "administrator" and "secretsManagerArn" should not match
+    # because they don't have word boundaries after "admin" and "secret"
+    (tmp_path / "config.yml").write_text(
+        "password: administrator\nsecret: secretsManagerArn\n"
+    )
+    ctx = ScanContext(sbom=None, sbom_format=None, repo_path=tmp_path, source="x")
+    result = DefaultSecureConfigCheck().run(ctx)
+    assert result.status == "pass"

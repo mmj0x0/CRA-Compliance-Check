@@ -5,8 +5,8 @@ from cra_check.report import CheckResult
 
 CONFIG_GLOBS = ["*.yml", "*.yaml", "*.env", "*.env.example"]
 INSECURE_PATTERNS = [
-    re.compile(r"password\s*[:=]\s*['\"]?(admin|password|changeme|123456)['\"]?", re.IGNORECASE),
-    re.compile(r"secret\s*[:=]\s*['\"]?(changeme|secret|default)['\"]?", re.IGNORECASE),
+    re.compile(r"password\s*[:=]\s*['\"]?(admin|password|changeme|123456)\b['\"]?", re.IGNORECASE),
+    re.compile(r"secret\s*[:=]\s*['\"]?(changeme|secret|default)\b['\"]?", re.IGNORECASE),
 ]
 
 
