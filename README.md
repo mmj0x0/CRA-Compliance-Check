@@ -22,6 +22,9 @@ cra-check ./sbom.json --json report.json --fail-under 70
 
 # Skip network-dependent checks (e.g. OSV.dev)
 cra-check ./sbom.json --offline
+
+# Only show warnings and failures in the terminal report (score/exit code unaffected)
+cra-check ./sbom.json --severity-threshold warn
 ```
 
 ## What it checks
